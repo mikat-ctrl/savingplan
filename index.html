@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学費貯金プラン シミュレーター</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{--bg:#f5f7fa;--card:#fff;--ink:#1f2937;--sub:#6b7280;--line:#e5e7eb;--accent:#2563eb;--green:#059669;--red:#dc2626;--greenbg:#ecfdf5;--redbg:#fef2f2;--bluebg:#eff6ff;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  h1{font-size:22px;margin:0 0 4px}
+  .muted{color:var(--sub);font-size:13px}
+  .grid{display:grid;gap:16px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .kpi .label{font-size:12px;color:var(--sub);min-height:32px}
+  .kpi .value{font-size:22px;font-weight:700;margin-top:4px}
+  .kpi .value.sm{font-size:16px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .ok{background:var(--greenbg);color:var(--green)} .bad{background:var(--redbg);color:var(--red)}
+  .up{color:var(--green)} .down{color:var(--red)}
+  details{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  summary{cursor:pointer;padding:14px 16px;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"▾";color:var(--sub)} details[open] summary::after{content:"▴"}
+  .body{padding:0 16px 16px}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--sub)}
+  input,select{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font-size:14px;width:100%;background:#fff}
+  input[type=range]{padding:0}
+  .sliderval{font-weight:700;color:var(--accent)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--card)}
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:right;white-space:nowrap}
+  th{background:#f9fafb;position:sticky;top:0;font-weight:600;color:var(--sub)}
+  td.l,th.l{text-align:left}
+  tr.alert td{background:var(--redbg)} tr.goal td{outline:2px solid var(--green);outline-offset:-2px}
+  .tablewrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:12px}
+  .btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+  .btn.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 16px}
+  .note{font-size:12px;color:var(--sub);background:var(--bluebg);border:1px solid #dbeafe;border-radius:8px;padding:10px 12px;margin-top:10px}
+  .chartbox{height:360px}
+  .small{font-size:12px}
+  .tag{font-size:11px;color:var(--sub);background:#f3f4f6;padding:1px 6px;border-radius:6px}
+  .stageTbl input[type=text],.stageTbl input[type=number]{font-size:13px;padding:5px 6px}
+  .stageTbl td,.stageTbl th{text-align:center}
+  .mgrid input{width:64px;padding:4px;font-size:12px;text-align:right}
+  .mgrid th,.mgrid td{padding:4px 5px}
+  h3.sec{margin:18px 0 8px;font-size:15px}
+</style>
+<script>window.__STATE__={"lang":"ja","rate":2,"tax":0,"rent":24000,"inc1":200000,"inc2":150000,"switchYear":2035,"sal1":80000,"sal2":55000,"bon1":300000,"bon2":10000,"startY":2025,"startM":10,"b1":2021,"b2":2024,"stages":[{"name":"Kinder","from":4,"to":5,"fee":97000,"entry":70000,"target":false},{"name":"Elementary","from":6,"to":11,"fee":190000,"entry":200000,"target":false},{"name":"Jonior","from":12,"to":14,"fee":285000,"entry":200000,"target":false},{"name":"High(Kosen5Y)","from":15,"to":19,"fee":450000,"entry":100000,"target":true},{"name":"Uni(TF to 3 Grade)","from":20,"to":21,"fee":600000,"entry":200000,"target":true}],"actuals":{"2025-12":400000},"savedAt":1782835160316};</script>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-i18n="title">学費貯金プラン シミュレーター</h1>
+  <div class="muted" data-i18n="intro">目標：高校(高専)＋大学の学費（2人分）を貯める計画。利回り・収入・学費マスタを動かし、毎月の貯金残高(実績)を入れて計画どおり進んでいるかを月次で確認できます。入力はこのブラウザに自動保存されます。</div>
+
+  <div class="toolbar">
+    <button class="btn" onclick="calc()" data-i18n="btnRecalc">再計算</button>
+    <button class="btn ghost" onclick="saveLS(true)" data-i18n="btnSave">ブラウザに保存</button>
+    <button class="btn" onclick="exportHTML()" data-i18n="btnExport">💾 保存ファイルを書き出す（正式な保存）</button>
+    <button class="btn ghost" onclick="resetAll()" data-i18n="btnReset">初期値に戻す</button>
+    <button class="btn ghost" id="langBtn" onclick="toggleLang()">EN</button>
+    <span class="muted small" id="savedAt"></span>
+  </div>
+
+  <div class="grid cards" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label" data-i18n="kpi1">高校＋大学の学費予測 合計（必要年）</div><div class="value sm" id="k1">7,500,000 THB<div class="muted small">必要 2036年〜</div></div></div>
+    <div class="card kpi"><div class="label" data-i18n="kpi2">目標達成年：計画 vs 実績</div><div class="value sm" id="k2">計画 2033年<div class="muted small">実績 2033年</div></div></div>
+    <div class="card kpi"><div class="label" data-i18n="kpi3">実績ペース継続なら達成</div><div class="value sm" id="k3"><b>2033年7月</b></div></div>
+    <div class="card kpi"><div class="label" data-i18n="kpi4">直近の実績 vs 計画</div><div class="value sm" id="k4"><span class="up">+177,000 THB</span><div class="muted small">2025/12: 実績 400,000 / 計画 223,000</div></div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="chartbox"><canvas id="chart" style="box-sizing: border-box; display: block; height: 360px; width: 1126px;" width="2252" height="720"></canvas></div>
+    <div class="legend muted small" data-i18n="legend" style="margin-top:8px">青実線＝月次の計画残高｜緑＝実績（以降は現在の差を保ったまま計画ペースで延長）｜赤点線＝目標ライン｜薄赤帯＝家計アラートの年</div>
+  </div>
+
+  <h3 class="sec" data-i18n="annualTitle">年次サマリー（12月末時点）</h3>
+  <div class="tablewrap" style="margin-bottom:16px"><table id="mainTbl"><tbody><tr><th class="l">年</th><th class="">Kid1</th><th class="">Kid2</th><th class="">学費(現金)</th><th class="">積立</th><th class="">純増</th><th class="">運用益</th><th class="">残高(計画)</th><th class="">残高(実績)</th><th class="">月収</th><th class="">固定費比率</th><th class="">判定</th></tr><tr class=""><td class="l">2025</td><td>4</td><td>1</td>
+      <td>97,000</td><td>390,000</td><td>293,000</td><td>0</td>
+      <td><b>223,000</b></td><td>400,000</td>
+      <td>200,000</td><td>16.0%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2026</td><td>5</td><td>2</td>
+      <td>297,000</td><td>1,260,000</td><td>963,000</td><td>10,359</td>
+      <td><b>1,196,359</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>24.4%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2027</td><td>6</td><td>3</td>
+      <td>260,000</td><td>1,260,000</td><td>1,000,000</td><td>31,097</td>
+      <td><b>2,227,457</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>22.8%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2028</td><td>7</td><td>4</td>
+      <td>287,000</td><td>1,260,000</td><td>973,000</td><td>51,946</td>
+      <td><b>3,252,403</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>24.0%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2029</td><td>8</td><td>5</td>
+      <td>487,000</td><td>1,260,000</td><td>773,000</td><td>69,276</td>
+      <td><b>4,094,679</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>32.3%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2030</td><td>9</td><td>6</td>
+      <td>380,000</td><td>1,260,000</td><td>880,000</td><td>88,543</td>
+      <td><b>5,063,223</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>27.8%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2031</td><td>10</td><td>7</td>
+      <td>380,000</td><td>1,260,000</td><td>880,000</td><td>108,093</td>
+      <td><b>6,051,315</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>27.8%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2032</td><td>11</td><td>8</td>
+      <td>580,000</td><td>1,260,000</td><td>680,000</td><td>124,678</td>
+      <td><b>6,855,994</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>36.2%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class="goal"><td class="l">2033</td><td>12</td><td>9</td>
+      <td>475,000</td><td>1,260,000</td><td>785,000</td><td>143,164</td>
+      <td><b>7,784,158</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>31.8%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2034</td><td>13</td><td>10</td>
+      <td>475,000</td><td>1,260,000</td><td>785,000</td><td>161,898</td>
+      <td><b>8,731,056</b></td><td><span class="tag">—</span></td>
+      <td>200,000</td><td>31.8%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class="alert "><td class="l">2035</td><td>14</td><td>11</td>
+      <td>775,000</td><td>670,000</td><td>-105,000</td><td>171,752</td>
+      <td><b>8,797,807</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>59.1%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2036</td><td>15</td><td>12</td>
+      <td>735,000</td><td>670,000</td><td>-65,000</td><td>175,085</td>
+      <td><b>8,907,892</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>56.8%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2037</td><td>16</td><td>13</td>
+      <td>735,000</td><td>670,000</td><td>-65,000</td><td>177,307</td>
+      <td><b>9,020,199</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>56.8%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2038</td><td>17</td><td>14</td>
+      <td>835,000</td><td>670,000</td><td>-165,000</td><td>177,894</td>
+      <td><b>9,033,093</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>62.4%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2039</td><td>18</td><td>15</td>
+      <td>900,000</td><td>670,000</td><td>-230,000</td><td>177,897</td>
+      <td><b>8,980,990</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>66.0%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2040</td><td>19</td><td>16</td>
+      <td>1,100,000</td><td>670,000</td><td>-430,000</td><td>173,487</td>
+      <td><b>8,724,477</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>77.1%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2041</td><td>20</td><td>17</td>
+      <td>1,050,000</td><td>670,000</td><td>-380,000</td><td>169,907</td>
+      <td><b>8,514,384</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>74.3%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2042</td><td>21</td><td>18</td>
+      <td>1,050,000</td><td>670,000</td><td>-380,000</td><td>165,667</td>
+      <td><b>8,300,051</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>74.3%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2043</td><td>22</td><td>19</td>
+      <td>650,000</td><td>670,000</td><td>20,000</td><td>165,025</td>
+      <td><b>8,485,076</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>52.1%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2044</td><td>23</td><td>20</td>
+      <td>600,000</td><td>670,000</td><td>70,000</td><td>170,357</td>
+      <td><b>8,725,433</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>49.3%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class="alert "><td class="l">2045</td><td>24</td><td>21</td>
+      <td>600,000</td><td>670,000</td><td>70,000</td><td>175,209</td>
+      <td><b>8,970,641</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>49.3%</td>
+      <td class="l"><span class="pill bad">危険</span></td></tr><tr class=""><td class="l">2046</td><td>25</td><td>22</td>
+      <td>0</td><td>670,000</td><td>670,000</td><td>187,201</td>
+      <td><b>9,827,842</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>16.0%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr><tr class=""><td class="l">2047</td><td>26</td><td>23</td>
+      <td>0</td><td>670,000</td><td>670,000</td><td>204,503</td>
+      <td><b>10,702,344</b></td><td><span class="tag">—</span></td>
+      <td>150,000</td><td>16.0%</td>
+      <td class="l"><span class="pill ok">安全</span></td></tr></tbody></table></div>
+
+  <details open="">
+    <summary data-i18n="sec1">① 基本の変数（利回り・収入・積立）</summary>
+    <div class="body">
+      <div class="row">
+        <label class="f"><span data-i18n="rate">運用利回り（年率）</span> <span class="sliderval" id="rateOut">2%</span><input type="range" id="rate" min="0" max="8" step="0.1"></label>
+        <label class="f"><span data-i18n="tax">運用益への課税率（%）</span> <span class="sliderval" id="taxOut">0%</span><input type="range" id="tax" min="0" max="30" step="1"></label>
+        <label class="f"><span data-i18n="rent">月額家賃（THB・固定費）</span><input type="number" id="rent"></label>
+        <label class="f"><span data-i18n="startYM">積立開始（年/月）</span><div style="display:flex;gap:6px"><input type="number" id="startY" style="width:90px"><select id="startM"><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select></div></label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label class="f"><span data-i18n="inc1">世帯月収 第1期（THB/月）</span><input type="number" id="inc1"></label>
+        <label class="f"><span data-i18n="inc2">世帯月収 第2期（THB/月）</span><input type="number" id="inc2"></label>
+        <label class="f"><span data-i18n="switchYear">収入が第2期に切替わる年</span><input type="number" id="switchYear"></label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label class="f"><span data-i18n="sal1">月積立 第1期（給与・THB/月）</span><input type="number" id="sal1"></label>
+        <label class="f"><span data-i18n="sal2">月積立 第2期（給与・THB/月）</span><input type="number" id="sal2"></label>
+        <label class="f"><span data-i18n="bon1">ボーナス積立 第1期（年・THB）</span><input type="number" id="bon1"></label>
+        <label class="f"><span data-i18n="bon2">ボーナス積立 第2期（年・THB）</span><input type="number" id="bon2"></label>
+      </div>
+      <div class="note" data-i18n="note1">入金タイミング：給与積立＝毎月均等／ボーナス＝<b>6月・12月に半額ずつ</b>。アラート条件：<b>①世帯月収&lt;150,000 THB</b> または <b>②(家賃＋月額学費)÷月収&gt;40%</b>（月額学費＝その年の学費合計÷12）。</div>
+    </div>
+  </details>
+
+  <details open="">
+    <summary data-i18n="sec2">② 学費マスタ（年齢帯 → 年額・1人あたり）</summary>
+    <div class="body">
+      <div class="muted small" data-i18n="masterNote">子の年齢に応じた1人あたり年間学費。実額がわかったら金額を上書きしてください。支払いは<b>2月・8月に半期前払い</b>、<b>入学金は前年度の2月に納付</b>。「目標対象」にチェックしたステージ（高専＋大学など）の2人分合計が貯金目標になります。</div>
+      <table class="stageTbl" id="stageTbl" style="margin-top:10px"><tbody><tr><th>ステージ</th><th>年齢from</th><th>年齢to</th><th>年額(THB)</th><th>入学金(THB)</th><th>目標対象</th><th></th></tr><tr>
+    <td><input type="text" value="Kinder" onchange="updStage(0,'name',this.value)"></td>
+    <td><input type="number" value="4" style="width:62px" onchange="updStage(0,'from',this.value)"></td>
+    <td><input type="number" value="5" style="width:62px" onchange="updStage(0,'to',this.value)"></td>
+    <td><input type="number" value="97000" style="width:100px" onchange="updStage(0,'fee',this.value)"></td>
+    <td><input type="number" value="70000" style="width:100px" onchange="updStage(0,'entry',this.value)"></td>
+    <td><input type="checkbox" onchange="updStage(0,'target',this.checked)" style="width:auto"></td>
+    <td><button class="btn ghost small" onclick="delStage(0)">削除</button></td></tr><tr>
+    <td><input type="text" value="Elementary" onchange="updStage(1,'name',this.value)"></td>
+    <td><input type="number" value="6" style="width:62px" onchange="updStage(1,'from',this.value)"></td>
+    <td><input type="number" value="11" style="width:62px" onchange="updStage(1,'to',this.value)"></td>
+    <td><input type="number" value="190000" style="width:100px" onchange="updStage(1,'fee',this.value)"></td>
+    <td><input type="number" value="200000" style="width:100px" onchange="updStage(1,'entry',this.value)"></td>
+    <td><input type="checkbox" onchange="updStage(1,'target',this.checked)" style="width:auto"></td>
+    <td><button class="btn ghost small" onclick="delStage(1)">削除</button></td></tr><tr>
+    <td><input type="text" value="Jonior" onchange="updStage(2,'name',this.value)"></td>
+    <td><input type="number" value="12" style="width:62px" onchange="updStage(2,'from',this.value)"></td>
+    <td><input type="number" value="14" style="width:62px" onchange="updStage(2,'to',this.value)"></td>
+    <td><input type="number" value="285000" style="width:100px" onchange="updStage(2,'fee',this.value)"></td>
+    <td><input type="number" value="200000" style="width:100px" onchange="updStage(2,'entry',this.value)"></td>
+    <td><input type="checkbox" onchange="updStage(2,'target',this.checked)" style="width:auto"></td>
+    <td><button class="btn ghost small" onclick="delStage(2)">削除</button></td></tr><tr>
+    <td><input type="text" value="High(Kosen5Y)" onchange="updStage(3,'name',this.value)"></td>
+    <td><input type="number" value="15" style="width:62px" onchange="updStage(3,'from',this.value)"></td>
+    <td><input type="number" value="19" style="width:62px" onchange="updStage(3,'to',this.value)"></td>
+    <td><input type="number" value="450000" style="width:100px" onchange="updStage(3,'fee',this.value)"></td>
+    <td><input type="number" value="100000" style="width:100px" onchange="updStage(3,'entry',this.value)"></td>
+    <td><input type="checkbox" checked="" onchange="updStage(3,'target',this.checked)" style="width:auto"></td>
+    <td><button class="btn ghost small" onclick="delStage(3)">削除</button></td></tr><tr>
+    <td><input type="text" value="Uni(TF to 3 Grade)" onchange="updStage(4,'name',this.value)"></td>
+    <td><input type="number" value="20" style="width:62px" onchange="updStage(4,'from',this.value)"></td>
+    <td><input type="number" value="21" style="width:62px" onchange="updStage(4,'to',this.value)"></td>
+    <td><input type="number" value="600000" style="width:100px" onchange="updStage(4,'fee',this.value)"></td>
+    <td><input type="number" value="200000" style="width:100px" onchange="updStage(4,'entry',this.value)"></td>
+    <td><input type="checkbox" checked="" onchange="updStage(4,'target',this.checked)" style="width:auto"></td>
+    <td><button class="btn ghost small" onclick="delStage(4)">削除</button></td></tr></tbody></table>
+      <button class="btn ghost small" style="margin-top:8px" onclick="addStage()" data-i18n="btnAddRow">＋ 行を追加</button>
+      <div class="row" style="margin-top:12px">
+        <label class="f"><span data-i18n="b1">Kid1 生まれ年</span><input type="number" id="b1"></label>
+        <label class="f"><span data-i18n="b2">Kid2 生まれ年</span><input type="number" id="b2"></label>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary data-i18n="sec3">③ 実績入力（月末の貯金残高・THB）</summary>
+    <div class="body">
+      <div class="muted small" data-i18n="actualNote">わかっている月だけ、月末の貯金残高（実額）を入れてください。空欄の月はスキップされます。入れた月が緑点で表示され、計画線と比べられます。</div>
+      <div class="tablewrap" style="margin-top:10px;max-height:340px"><table class="mgrid" id="actualTbl"><tbody><tr><th class="l">年\月</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th></tr><tr><td class="l">2024</td><td><input type="number" value="" onchange="updActual(2024,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2024,12,this.value)"></td></tr><tr><td class="l">2025</td><td><input type="number" value="" onchange="updActual(2025,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2025,11,this.value)"></td><td><input type="number" value="400000" onchange="updActual(2025,12,this.value)"></td></tr><tr><td class="l">2026</td><td><input type="number" value="" onchange="updActual(2026,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,5,this.value)"></td><td><input type="number" value="1300000" onchange="updActual(2026,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2026,12,this.value)"></td></tr><tr><td class="l">2027</td><td><input type="number" value="" onchange="updActual(2027,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2027,12,this.value)"></td></tr><tr><td class="l">2028</td><td><input type="number" value="" onchange="updActual(2028,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2028,12,this.value)"></td></tr><tr><td class="l">2029</td><td><input type="number" value="" onchange="updActual(2029,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2029,12,this.value)"></td></tr><tr><td class="l">2030</td><td><input type="number" value="" onchange="updActual(2030,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2030,12,this.value)"></td></tr><tr><td class="l">2031</td><td><input type="number" value="" onchange="updActual(2031,1,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,2,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,3,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,4,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,5,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,6,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,7,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,8,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,9,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,10,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,11,this.value)"></td><td><input type="number" value="" onchange="updActual(2031,12,this.value)"></td></tr></tbody></table></div>
+    </div>
+  </details>
+</div>
+
+<script>
+const LANG={
+ ja:{
+  title:"学費貯金プラン シミュレーター",
+  intro:"目標：高校(高専)＋大学の学費（2人分）を貯める計画。利回り・収入・学費マスタを動かし、毎月の貯金残高(実績)を入れて計画どおり進んでいるかを月次で確認できます。入力はこのブラウザに自動保存されます。",
+  btnRecalc:"再計算",btnSave:"ブラウザに保存",btnExport:"💾 保存ファイルを書き出す（正式な保存）",btnReset:"初期値に戻す",savedAt:"保存しました ",
+  exportMsg:"保存ファイル（Tuition_Saving_Tool_data.html）をダウンロードしました。\n\nこれが正式な保存版です。来月はこのダウンロードしたファイルを開いて編集し、また『保存ファイルを書き出す』を押してください。\n（共有も、このファイルを送ればOKです）",
+  kpi1:"高校＋大学の学費予測 合計（必要年）",kpi1Need:"必要",
+  kpi2:"目標達成年：計画 vs 実績",kpi3:"実績ペース継続なら達成",kpi4:"直近の実績 vs 計画",
+  plan:"計画",actual:"実績",notReached:"期間内未達",noActual:"実績未入力",
+  legend:"青実線＝月次の計画残高｜緑＝実績（以降は現在の差を保ったまま計画ペースで延長）｜赤点線＝目標ライン｜薄赤帯＝家計アラートの年",
+  sec1:"① 基本の変数（利回り・収入・積立）",
+  rate:"運用利回り（年率）",tax:"運用益への課税率（%）",rent:"月額家賃（THB・固定費）",startYM:"積立開始（年/月）",
+  inc1:"世帯月収 第1期（THB/月）",inc2:"世帯月収 第2期（THB/月）",switchYear:"収入が第2期に切替わる年",
+  sal1:"月積立 第1期（給与・THB/月）",sal2:"月積立 第2期（給与・THB/月）",bon1:"ボーナス積立 第1期（年・THB）",bon2:"ボーナス積立 第2期（年・THB）",
+  note1:"入金タイミング：給与積立＝毎月均等／ボーナス＝<b>6月・12月に半額ずつ</b>。アラート条件：<b>①世帯月収&lt;150,000 THB</b> または <b>②(家賃＋月額学費)÷月収&gt;40%</b>（月額学費＝その年の学費合計÷12）。",
+  sec2:"② 学費マスタ（年齢帯 → 年額・1人あたり）",
+  masterNote:"子の年齢に応じた1人あたり年間学費。実額がわかったら金額を上書きしてください。支払いは<b>2月・8月に半期前払い</b>、<b>入学金は前年度の2月に納付</b>。「目標対象」にチェックしたステージ（高専＋大学など）の2人分合計が貯金目標になります。",
+  stage:["ステージ","年齢from","年齢to","年額(THB)","入学金(THB)","目標対象",""],
+  btnAddRow:"＋ 行を追加",delete:"削除",
+  b1:"Kid1 生まれ年",b2:"Kid2 生まれ年",
+  sec3:"③ 実績入力（月末の貯金残高・THB）",
+  actualNote:"わかっている月だけ、月末の貯金残高（実額）を入れてください。空欄の月はスキップされます。入れた月が緑点で表示され、計画線と比べられます。",
+  annualTitle:"年次サマリー（12月末時点）",
+  main:["年","Kid1","Kid2","学費(現金)","積立","純増","運用益","残高(計画)","残高(実績)","月収","固定費比率","判定"],
+  safe:"安全",alert:"危険",ymRow:"年\\月",
+  months:["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+  langBtn:"EN"
+ },
+ en:{
+  title:"Tuition Savings Simulator",
+  intro:"Goal: save the combined high-school (Kosen) + university tuition for both children. Adjust returns, income and the tuition master, then enter your actual month-end balance to check each month whether you are on track. Inputs are auto-saved in this browser.",
+  btnRecalc:"Recalculate",btnSave:"Save in browser",btnExport:"💾 Export save file (real save)",btnReset:"Reset",savedAt:"Saved ",
+  exportMsg:"Downloaded your save file (Tuition_Saving_Tool_data.html).\n\nThis file is your durable save. Next month, open this downloaded file, edit it, and press 'Export save file' again.\n(To share, just send this file.)",
+  kpi1:"High-school + University tuition (forecast total, needed year)",kpi1Need:"Needed from",
+  kpi2:"Goal year: Plan vs Actual",kpi3:"If actual pace continues",kpi4:"Latest actual vs plan",
+  plan:"Plan",actual:"Actual",notReached:"Not reached",noActual:"No actuals yet",
+  legend:"Blue = monthly plan balance | Green = actual (then extended at plan pace keeping current gap) | Red dashed = goal line | Light-red band = household-alert years",
+  sec1:"① Key variables (return / income / savings)",
+  rate:"Investment return (annual)",tax:"Tax on investment gains (%)",rent:"Monthly rent (THB, fixed)",startYM:"Savings start (year/month)",
+  inc1:"Household income, phase 1 (THB/mo)",inc2:"Household income, phase 2 (THB/mo)",switchYear:"Year income switches to phase 2",
+  sal1:"Monthly saving, phase 1 (salary, THB/mo)",sal2:"Monthly saving, phase 2 (salary, THB/mo)",bon1:"Bonus saving, phase 1 (per year, THB)",bon2:"Bonus saving, phase 2 (per year, THB)",
+  note1:"Timing: salary saved evenly each month; bonus split <b>half in June, half in December</b>. Alert when <b>① income &lt; 150,000 THB</b> or <b>② (rent + monthly tuition) ÷ income &gt; 40%</b> (monthly tuition = that year's tuition ÷ 12).",
+  sec2:"② Tuition master (age band → annual amount, per child)",
+  masterNote:"Annual tuition per child by age. Overwrite amounts as you learn real figures. Tuition is <b>prepaid in two halves (Feb & Aug)</b>; <b>entry fees are paid the prior year (Feb)</b>. The stages ticked as 'Goal target' (e.g. Kosen + university), for both children, define your savings goal.",
+  stage:["Stage","Age from","Age to","Annual (THB)","Entry fee (THB)","Goal target",""],
+  btnAddRow:"+ Add row",delete:"Delete",
+  b1:"Kid1 birth year",b2:"Kid2 birth year",
+  sec3:"③ Actuals (month-end balance, THB)",
+  actualNote:"Enter the actual month-end balance for months you know; blanks are skipped. Entered months appear as green dots against the plan line.",
+  annualTitle:"Annual summary (at Dec 31)",
+  main:["Year","Kid1","Kid2","Tuition (cash)","Saving","Net","Gain","Balance (plan)","Balance (actual)","Income/mo","Fixed-cost ratio","Status"],
+  safe:"Safe",alert:"Alert",ymRow:"Year\\Mo",
+  months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+  langBtn:"日本語"
+ }
+};
+
+const DEF={
+  lang:"ja",
+  rate:3.5,tax:0,rent:24000,
+  inc1:200000,inc2:150000,switchYear:2035,
+  sal1:80000,sal2:55000,bon1:300000,bon2:50000,
+  startY:2025,startM:10,b1:2021,b2:2024,
+  stages:[
+    {name:"幼稚園",from:4,to:5,fee:97000,entry:0,target:false},
+    {name:"小学校",from:6,to:11,fee:190000,entry:200000,target:false},
+    {name:"中学校",from:12,to:14,fee:285000,entry:0,target:false},
+    {name:"高専(5年)",from:15,to:19,fee:450000,entry:0,target:true},
+    {name:"大学編入(2年)",from:20,to:21,fee:600000,entry:0,target:true}
+  ],
+  actuals:{}
+};
+const Y0=2024,Y1=2047,ACT_Y0=2024,ACT_Y1=2031,LS="tuitionToolV3";
+let S=load();
+const t=k=>LANG[S.lang][k];
+
+function load(){let ls=null;try{ls=JSON.parse(localStorage.getItem(LS));}catch(e){}const em=window.__STATE__||null;let pick=null;if(ls&&em)pick=((em.savedAt||0)>=(ls.savedAt||0))?em:ls;else pick=ls||em;return pick?Object.assign(JSON.parse(JSON.stringify(DEF)),pick):JSON.parse(JSON.stringify(DEF));}
+function exportHTML(){readInputs();S.savedAt=Date.now();const st="<scr"+"ipt>window.__STATE__="+JSON.stringify(S)+";</scr"+"ipt>";let src="<!DOCTYPE html>\n"+document.documentElement.outerHTML;src=src.replace("</head>",st+"\n</head>");const blob=new Blob([src],{type:"text/html"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Tuition_Saving_Tool_data.html";document.body.appendChild(a);a.click();a.remove();alert(t("exportMsg"));}
+function saveLS(flag){S.savedAt=Date.now();try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}if(flag)document.getElementById("savedAt").textContent=t("savedAt")+new Date().toLocaleString();}
+function resetAll(){if(confirm("Reset all?")){const lang=S.lang;S=JSON.parse(JSON.stringify(DEF));S.lang=lang;localStorage.removeItem(LS);applyLang();fillInputs();buildStage();buildActual();calc();}}
+function toggleLang(){S.lang=S.lang==="ja"?"en":"ja";document.documentElement.lang=S.lang;applyLang();fillInputs();buildStage();buildActual();calc();}
+
+function applyLang(){
+  document.querySelectorAll("[data-i18n]").forEach(el=>{el.innerHTML=t(el.getAttribute("data-i18n"));});
+  document.title=t("title");
+  document.getElementById("langBtn").textContent=t("langBtn");
+}
+
+const numIds=["rate","tax","rent","inc1","inc2","switchYear","sal1","sal2","bon1","bon2","startY","b1","b2"];
+function fillInputs(){
+  numIds.forEach(k=>document.getElementById(k).value=S[k]);
+  const sm=document.getElementById("startM");sm.innerHTML="";
+  t("months").forEach((mn,i)=>{const o=document.createElement("option");o.value=i+1;o.textContent=mn;sm.appendChild(o);});
+  sm.value=S.startM;syncRange();
+}
+function readInputs(){numIds.forEach(k=>S[k]=parseFloat(document.getElementById(k).value)||0);S.startM=parseInt(document.getElementById("startM").value)||1;}
+function syncRange(){document.getElementById("rateOut").textContent=document.getElementById("rate").value+"%";document.getElementById("taxOut").textContent=document.getElementById("tax").value+"%";}
+
+function buildStage(){
+  const H=t("stage");
+  let h="<tr>"+H.map(x=>`<th>${x}</th>`).join("")+"</tr>";
+  S.stages.forEach((s,i)=>{h+=`<tr>
+    <td><input type="text" value="${s.name}" onchange="updStage(${i},'name',this.value)"></td>
+    <td><input type="number" value="${s.from}" style="width:62px" onchange="updStage(${i},'from',this.value)"></td>
+    <td><input type="number" value="${s.to}" style="width:62px" onchange="updStage(${i},'to',this.value)"></td>
+    <td><input type="number" value="${s.fee}" style="width:100px" onchange="updStage(${i},'fee',this.value)"></td>
+    <td><input type="number" value="${s.entry}" style="width:100px" onchange="updStage(${i},'entry',this.value)"></td>
+    <td><input type="checkbox" ${s.target?"checked":""} onchange="updStage(${i},'target',this.checked)" style="width:auto"></td>
+    <td><button class="btn ghost small" onclick="delStage(${i})">${t("delete")}</button></td></tr>`;});
+  document.getElementById("stageTbl").innerHTML=h;
+}
+function updStage(i,k,v){if(k==="name")S.stages[i][k]=v;else if(k==="target")S.stages[i][k]=v;else S.stages[i][k]=parseFloat(v)||0;calc();}
+function addStage(){S.stages.push({name:"new",from:0,to:0,fee:0,entry:0,target:false});buildStage();calc();}
+function delStage(i){S.stages.splice(i,1);buildStage();calc();}
+function feeForAge(age){for(const s of S.stages){if(age>=s.from&&age<=s.to)return s.fee;}return 0;}
+function entryDueForAge(age){let e=0;for(const s of S.stages){if(s.entry>0&&s.from-1===age)e+=s.entry;}return e;}
+
+function buildActual(){
+  let h=`<tr><th class='l'>${t("ymRow")}</th>`;
+  for(let m=1;m<=12;m++)h+=`<th>${m}</th>`;h+="</tr>";
+  for(let y=ACT_Y0;y<=ACT_Y1;y++){h+=`<tr><td class='l'>${y}</td>`;
+    for(let m=1;m<=12;m++){const v=S.actuals[`${y}-${m}`]??"";h+=`<td><input type="number" value="${v}" onchange="updActual(${y},${m},this.value)"></td>`;}
+    h+="</tr>";}
+  document.getElementById("actualTbl").innerHTML=h;
+}
+function updActual(y,m,v){const k=`${y}-${m}`;if(v==="")delete S.actuals[k];else S.actuals[k]=parseFloat(v)||0;calc();}
+
+function fmt(n){return Math.round(n).toLocaleString("en-US");}
+function fmtY(y){return S.lang==="ja"?`${y}年`:`${y}`;}
+function fmtYM(y,m){return S.lang==="ja"?`${y}年${m}月`:`${t("months")[m-1]} ${y}`;}
+
+function goalSum(){let g=0;S.stages.forEach(s=>{if(s.target)g+=s.fee*(s.to-s.from+1)+s.entry;});return g*2;}
+function neededYear(){let mf=null;S.stages.forEach(s=>{if(s.target&&(mf===null||s.from<mf))mf=s.from;});if(mf===null)return null;return Math.min(S.b1,S.b2)+mf;}
+
+function run(){
+  readInputs();
+  const rM=S.rate/100/12,taxF=1-S.tax/100,startIdx=(S.startY-Y0)*12+(S.startM-1);
+  let bal=0,idx=0;const pts=[],yr={};
+  for(let y=Y0;y<=Y1;y++){yr[y]={tut:0,inflow:0,profit:0,dec:0};
+    for(let m=1;m<=12;m++,idx++){
+      const profit=Math.max(0,bal)*rM*taxF;   // no interest on negative balance
+      let inflow=0;
+      if(idx>=startIdx){inflow+=(y<S.switchYear?S.sal1:S.sal2);if(m===6||m===12)inflow+=(y<S.switchYear?S.bon1:S.bon2)/2;}
+      let out=0;
+      [S.b1,S.b2].forEach(b=>{const age=y-b;const f=feeForAge(age);if(f>0&&(m===2||m===8))out+=f/2;if(m===2){const e=entryDueForAge(age);if(e>0)out+=e;}});
+      bal=bal+profit+inflow-out;
+      yr[y].profit+=profit;yr[y].inflow+=inflow;yr[y].tut+=out;
+      pts.push({y,m,idx,bal});if(m===12)yr[y].dec=bal;
+    }}
+  return {pts,yr};
+}
+
+function calc(){
+  const {pts,yr}=run();
+  const goal=goalSum(), need=neededYear();
+  const goalPlan=goal>0?pts.find(p=>p.bal>=goal):null;
+  let lastAct=null;pts.forEach(p=>{if(S.actuals[`${p.y}-${p.m}`]!==undefined)lastAct=p;});
+  let gapAtLast=0,planAtLast=0;
+  if(lastAct){planAtLast=pts[lastAct.idx].bal;gapAtLast=S.actuals[`${lastAct.y}-${lastAct.m}`]-planAtLast;}
+  const green=pts.map(p=>{const k=`${p.y}-${p.m}`;if(S.actuals[k]!==undefined)return S.actuals[k];if(lastAct&&p.idx>lastAct.idx)return p.bal+gapAtLast;return null;});
+  let goalActual=null;if(lastAct&&goal>0){for(let i=0;i<pts.length;i++){if(green[i]!==null&&green[i]>=goal){goalActual=pts[i];break;}}}
+
+  let firstAlert=null;const alertYears={};
+  for(let y=2025;y<=Y1;y++){const inc=(y<S.switchYear?S.inc1:S.inc2);const ratio=inc>0?(S.rent+yr[y].tut/12)/inc:0;const al=(inc<150000)||(ratio>0.40);alertYears[y]=al;if(al&&firstAlert===null)firstAlert=y;}
+
+  document.getElementById("k1").innerHTML=`${fmt(goal)} THB<div class="muted small">${t("kpi1Need")} ${need?fmtY(need):"—"}〜</div>`;
+  document.getElementById("k2").innerHTML=`${t("plan")} ${goalPlan?fmtY(goalPlan.y):t("notReached")}<div class="muted small">${t("actual")} ${lastAct?(goalActual?fmtY(goalActual.y):t("notReached")):t("noActual")}</div>`;
+  document.getElementById("k3").innerHTML= lastAct?(goalActual?`<b>${fmtYM(goalActual.y,goalActual.m)}</b>`:t("notReached")):t("noActual");
+  const k4=document.getElementById("k4");
+  if(lastAct){const g=gapAtLast,sign=g>=0?"+":"−";k4.innerHTML=`<span class="${g>=0?'up':'down'}">${sign}${fmt(Math.abs(g))} THB</span><div class="muted small">${lastAct.y}/${lastAct.m}: ${t("actual")} ${fmt(S.actuals[`${lastAct.y}-${lastAct.m}`])} / ${t("plan")} ${fmt(planAtLast)}</div>`;}
+  else k4.textContent=t("noActual");
+
+  const M=t("main");
+  let h="<tr>"+M.map((x,i)=>`<th class="${i===0?'l':''}">${x}</th>`).join("")+"</tr>";
+  for(let y=2025;y<=Y1;y++){const a=yr[y];const inc=(y<S.switchYear?S.inc1:S.inc2);const ratio=(S.rent+a.tut/12)/inc;const al=alertYears[y];const actDec=S.actuals[`${y}-12`];
+    const cls=(al?"alert ":"")+((goalPlan&&goalPlan.y===y)?"goal":"");
+    h+=`<tr class="${cls}"><td class='l'>${y}</td><td>${y-S.b1}</td><td>${y-S.b2}</td>
+      <td>${fmt(a.tut)}</td><td>${fmt(a.inflow)}</td><td>${fmt(a.inflow-a.tut)}</td><td>${fmt(a.profit)}</td>
+      <td><b>${fmt(a.dec)}</b></td><td>${actDec!==undefined?fmt(actDec):'<span class="tag">—</span>'}</td>
+      <td>${fmt(inc)}</td><td>${(ratio*100).toFixed(1)}%</td>
+      <td class='l'>${al?`<span class="pill bad">${t("alert")}</span>`:`<span class="pill ok">${t("safe")}</span>`}</td></tr>`;}
+  document.getElementById("mainTbl").innerHTML=h;
+
+  drawChart(pts,green,alertYears,goal);
+  saveLS(false);
+}
+
+let chart;
+function drawChart(pts,green,alertYears,goal){
+  const labels=pts.map(p=>`${p.y}/${String(p.m).padStart(2,"0")}`);
+  const plan=pts.map(p=>Math.round(p.bal));
+  const goalLine=pts.map(()=>goal);
+  const greenData=green.map(v=>v===null?null:Math.round(v));
+  const bandPlugin={id:"bands",beforeDraw(c){const {ctx,chartArea:{top,bottom},scales:{x}}=c;if(!x)return;ctx.save();ctx.fillStyle="rgba(220,38,38,.06)";let start=null;
+    pts.forEach((p,i)=>{if(alertYears[p.y]){if(start===null)start=i;}else{if(start!==null){const x0=x.getPixelForValue(start)-3,x1=x.getPixelForValue(i)-3;ctx.fillRect(x0,top,x1-x0,bottom-top);start=null;}}});
+    if(start!==null){const x0=x.getPixelForValue(start)-3,x1=x.getPixelForValue(pts.length-1);ctx.fillRect(x0,top,x1-x0,bottom-top);}ctx.restore();}};
+  if(chart)chart.destroy();
+  chart=new Chart(document.getElementById("chart"),{type:"line",data:{labels,datasets:[
+    {label:t("plan"),data:plan,borderColor:"#2563eb",backgroundColor:"rgba(37,99,235,.06)",fill:true,pointRadius:0,borderWidth:2,tension:.15},
+    {label:t("actual"),data:greenData,borderColor:"#059669",pointRadius:ctx=>{const k=`${pts[ctx.dataIndex].y}-${pts[ctx.dataIndex].m}`;return S.actuals[k]!==undefined?3.5:0;},pointBackgroundColor:"#059669",borderWidth:2,borderDash:[4,3],spanGaps:true,tension:.15},
+    {label:"Goal",data:goalLine,borderColor:"#dc2626",borderDash:[6,4],pointRadius:0,borderWidth:1.5}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+    plugins:{legend:{labels:{font:{size:11}}},tooltip:{callbacks:{title:i=>i[0].label,label:c=>c.raw==null?null:c.dataset.label+": "+Number(c.raw).toLocaleString()+" THB"}}},
+    scales:{x:{ticks:{maxTicksLimit:24,callback:function(v){const l=this.getLabelForValue(v);return l.endsWith("/01")?l.slice(0,4):"";}}},y:{ticks:{callback:v=>(v/1e6)+"M"}}}},plugins:[bandPlugin]});
+}
+
+// init
+document.documentElement.lang=S.lang;
+applyLang();fillInputs();buildStage();buildActual();
+["rate","tax"].forEach(k=>document.getElementById(k).addEventListener("input",()=>{syncRange();calc();}));
+numIds.concat(["startM"]).forEach(k=>document.getElementById(k).addEventListener("change",calc));
+calc();
+</script>
+
+
+</body></html>
